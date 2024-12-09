@@ -183,7 +183,8 @@ class DNN:
         self.dqTd_filtered_history_R[1:3] = self.dqTd_filtered_history_R[0:2]
         self.dqTd_filtered_history_R[0] = np.sum(np.dot(self.dqTd_history_R, self.b)) - np.sum(np.dot(self.dqTd_filtered_history_R[2:0:-1], self.a[2:0:-1]))
         self.dqTd_filtered_R = self.dqTd_filtered_history_R[0]
-        #
+        
+        # calculation 
         self.hip_torque_L = (self.qHr_L * self.kp2 + self.dqTd_filtered_L * self.kd2 * (-1.0)) * 0.008
         self.hip_torque_R = (self.qHr_R * self.kp3 + self.dqTd_filtered_R * self.kd3 * (-1.0)) * 0.008
 

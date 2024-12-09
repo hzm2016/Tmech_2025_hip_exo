@@ -43,7 +43,10 @@ class READIMU(object):
 
     def send(self,b1,b2,b3,b4):
         self.Serial_IMU.write(bytearray([0x40, 0x41, 0x42, 
-                               b1, b2, b3, b4, 0x43]))   
+                               b1, b2, b3, b4, 0x43]))     
+        
+    def send_reference(self, b1, b2, b3, b4,b5, b6, b7, b8):     
+        self.Serial_IMU.write(bytearray([b1, b2, b3, b4, b5, b6, b7, b8]))     
     
     def printHEX(self, Vprint):
         print([hex(x) for x in Vprint])

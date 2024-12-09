@@ -10,38 +10,18 @@ from utils import *
 ComPort = '/dev/serial0'     
 imu = ReadIMU.READIMU(ComPort)      
 
-start = time.time()   
 
+# date = time.localtime(time.time())  
+# date_year = date.tm_year  
+# date_month = date.tm_mon  
+# date_day = date.tm_mday  
+# date_hour = date.tm_hour  
+# date_minute = date.tm_min  
+# date_second = date.tm_sec   
 
-dnn = DNN(18, 128, 64, 2)  # depends on training network 
-now = 0  
-t_pr1 = 0   
-t_pr2 = 0   
-t_pr3 = 0   
-pk = 0   
-counter = 0     
-L_Cmd = 0   
-R_Cmd = 0   
-
-L_Ctl = 1  
-R_Ctl = 1   
-Cmd_scale = 20.0  
-
-# command: 1.5 for running, 2 for climbing  
-kcontrol = 1        
-output = np.array([])    
-
-date = time.localtime(time.time())  
-date_year = date.tm_year  
-date_month = date.tm_mon  
-date_day = date.tm_mday  
-date_hour = date.tm_hour  
-date_minute = date.tm_min  
-date_second = date.tm_sec   
-
-root_path = "../data/Ours/With_IMU/Lily/s0x75"  # "s1x25, s1x75, sx20"
-# Create filename with format {Year}{Month}{Day}-{Hour}{Minute}{Second}.csv
-csv_filename = root_path + f"{date_year:04}{date_month:02}{date_day:02}-{date_hour:02}{date_minute:02}{date_second:02}.csv"
+# root_path = "../data/Ours/With_IMU/Lily/s0x75"  # "s1x25, s1x75, sx20"
+# # Create filename with format {Year}{Month}{Day}-{Hour}{Minute}{Second}.csv
+# csv_filename = root_path + f"{date_year:04}{date_month:02}{date_day:02}-{date_hour:02}{date_minute:02}{date_second:02}.csv"
 
 
 if save_data:   
@@ -51,13 +31,20 @@ if save_data:
             "L_IMU_angle", "R_IMU_angle", 
             "L_IMU_vel", "R_IMU_vel", 
             "L_encoder", "R_encoder", 
-            "L_encoder_vel", "R_encoder_vel", 
+            "L_encoder_vel", "R_encoder_vel",  
             "L_Cmd", "R_Cmd",   
-            "L_tau", "R_tau"   
+            "L_tau", "R_tau", 
+            "L_ref_pos", "R_ref_pos",   
+            "L_ref_vel", "R_ref_vel"   
         ))  
         
 with open(file_name, 'a', newline='') as csvfile:   
-    variablenames = ['L_IMU_Ang', 'R_IMU_Ang', 'L_IMU_Vel', 'R_IMU_Vel', 'L_Cmd', 'R_Cmd', 'Peak', 'Time']
+    variablenames = ['L_IMU_Ang', 'R_IMU_Ang', 
+                     'L_IMU_Vel', 'R_IMU_Vel', 
+                     'L_Cmd',     'R_Cmd', 
+                     'L_Ref_Ang', 'R_Ref_Ang', 
+                     'L_Ref_Vel', 'R_Ref_Vel',   
+                     'Peak', 'Time']
     writer = csv.DictWriter(csvfile, fieldnames=variablenames)   
 
     csvfile.seek(0, 2)   
@@ -69,25 +56,26 @@ with open(file_name, 'a', newline='') as csvfile:
         now = (time.time() - start)  
         
         imu.read()    
-        imu.decode()    
-        print("count :", counter)      
-
-        counter = counter + 1 
+        imu.decode()     
         
         L_IMU_angle = imu.XIMUL 
         R_IMU_angle = imu.XIMUR 
-        L_IMU_vel = imu.XVIMUL 
-        R_IMU_vel = imu.XVIMUR 
+        L_IMU_vel = imu.XVIMUL   
+        R_IMU_vel = imu.XVIMUR    
         
-        t_pr1 = now
-        kp = 10  
-        kd = 400   
+        #### filtering the input position and velocity ####    
+        
+        #### filtering the input position and velocity ####   
         
         print(f"Time when running NN = {now:^8.3f}")  
-        dnn.generate_assistance(L_IMU_angle, R_IMU_angle, L_IMU_vel, R_IMU_vel, kp, kd)  
+        hip_dnn.generate_assistance(L_IMU_angle, R_IMU_angle, L_IMU_vel, R_IMU_vel, kp, kd)  
 
-        L_Cmd = L_Ctl * dnn.hip_torque_L * kcontrol
-        R_Cmd = R_Ctl * dnn.hip_torque_R * kcontrol   
+        # calculate assistive torque in different ways    
+        L_Cmd = L_Ctl * hip_dnn.hip_torque_L * kcontrol      
+        R_Cmd = R_Ctl * hip_dnn.hip_torque_R * kcontrol        
+        
+        # L_Cmd =  cal_assistive_force(kp=kp, kd=kd, ref_pos=hip_dnn.qHr_L, real_vel=hip_dnn.dqTd_filtered_L)    
+        # R_Cmd =  cal_assistive_force(kp=kp, kd=kd, ref_pos=hip_dnn.qHr_R, real_vel=hip_dnn.dqTd_filtered_R)    
 
         if (L_Cmd > pk or R_Cmd > pk):  
             if (R_Cmd > L_Cmd): 
@@ -95,13 +83,14 @@ with open(file_name, 'a', newline='') as csvfile:
             if (L_Cmd > R_Cmd):  
                 pk = L_Cmd    
 
+        ## send torque command back    
         B1_int16 = int(imu.ToUint(L_Cmd/Cmd_scale, -20, 20, 16))    
         B2_int16 = int(imu.ToUint(R_Cmd/Cmd_scale, -20, 20, 16))     
 
         b1 = (B1_int16 >> 8 & 0x00ff)
         b2 = (B1_int16 & 0x00FF)  
         b3 = (B2_int16 >> 8 & 0x00ff)  
-        b4 = (B2_int16 & 0x00FF) 
+        b4 = (B2_int16 & 0x00FF)  
 
         imu.send(b1, b2, b3, b4)   
 
@@ -109,12 +98,16 @@ with open(file_name, 'a', newline='') as csvfile:
             'L_IMU_Ang': L_IMU_angle,
             'R_IMU_Ang': R_IMU_angle,
             'L_IMU_Vel': L_IMU_vel,
-            'R_IMU_Vel': R_IMU_vel,
+            'R_IMU_Vel': R_IMU_vel, 
             'L_Cmd': L_Cmd/Cmd_scale,  
             'R_Cmd': R_Cmd/Cmd_scale,  
-            'Peak': pk,
+            'L_Ref_Ang': hip_dnn.qHr_L,    
+            'R_Ref_Ang': hip_dnn.qHr_R,    
+            'L_Ref_Vel': hip_dnn.dqTd_filtered_L,   
+            'R_Ref_Vel': hip_dnn.dqTd_filtered_R,      
+            'Peak': pk,  
             'Time': now
         }   
         writer.writerow(data) 
-        csvfile.flush()  # Ensure data is written to file   
+        csvfile.flush()    
         print(f"| now: {now:^8.3f} | L_IMU_Ang: {L_IMU_angle:^8.3f} | R_IMU_Ang: {R_IMU_angle:^8.3f} | L_IMU_Vel: {L_IMU_vel:^8.3f} | R_IMU_Vel: {R_IMU_vel:^8.3f} | L_Cmd: {L_Cmd/Cmd_scale:^8.3f} | R_Cmd: {R_Cmd/Cmd_scale:^8.3f} | Peak: {pk/Cmd_scale:^8.3f} |")
