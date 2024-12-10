@@ -52,14 +52,14 @@ with open(file_name, 'a', newline='') as csvfile:
         writer.writeheader()    
 
     start = time.time()  
-    while True:
-        now = (time.time() - start)  
+    while True:  
+        now = (time.time() - start)   
         
         imu.read()    
         imu.decode()     
         
         L_IMU_angle = imu.XIMUL 
-        R_IMU_angle = imu.XIMUR 
+        R_IMU_angle = imu.XIMUR   
         L_IMU_vel = imu.XVIMUL   
         R_IMU_vel = imu.XVIMUR    
         
@@ -71,8 +71,8 @@ with open(file_name, 'a', newline='') as csvfile:
         hip_dnn.generate_assistance(L_IMU_angle, R_IMU_angle, L_IMU_vel, R_IMU_vel, kp, kd)  
 
         # calculate assistive torque in different ways    
-        L_Cmd = L_Ctl * hip_dnn.hip_torque_L * kcontrol      
-        R_Cmd = R_Ctl * hip_dnn.hip_torque_R * kcontrol        
+        L_Cmd = L_Ctl * hip_dnn.hip_torque_L * kcontrol * 1.0/Cmd_scale      
+        R_Cmd = R_Ctl * hip_dnn.hip_torque_R * kcontrol * 1.0/Cmd_scale         
         
         # L_Cmd =  cal_assistive_force(kp=kp, kd=kd, ref_pos=hip_dnn.qHr_L, real_vel=hip_dnn.dqTd_filtered_L)    
         # R_Cmd =  cal_assistive_force(kp=kp, kd=kd, ref_pos=hip_dnn.qHr_R, real_vel=hip_dnn.dqTd_filtered_R)    
@@ -82,32 +82,49 @@ with open(file_name, 'a', newline='') as csvfile:
                 pk = R_Cmd
             if (L_Cmd > R_Cmd):  
                 pk = L_Cmd    
-
-        ## send torque command back    
-        B1_int16 = int(imu.ToUint(L_Cmd/Cmd_scale, -20, 20, 16))    
-        B2_int16 = int(imu.ToUint(R_Cmd/Cmd_scale, -20, 20, 16))     
-
-        b1 = (B1_int16 >> 8 & 0x00ff)
-        b2 = (B1_int16 & 0x00FF)  
-        b3 = (B2_int16 >> 8 & 0x00ff)  
-        b4 = (B2_int16 & 0x00FF)  
-
-        imu.send(b1, b2, b3, b4)   
-
+        
+        if (ref_type == 1):  
+            ## second reference motion to Teensy   
+            R_P_L_int16 = int(imu.ToUint(hip_dnn.qHr_L, -1 * motion_scale, motion_scale, 16))     
+            R_P_R_int16 = int(imu.ToUint(hip_dnn.qHr_R, -1 * motion_scale, motion_scale, 16))         
+            R_V_L_int16 = int(imu.ToUint(hip_dnn.dqTd_filtered_L, -1 * motion_scale, motion_scale, 16))     
+            R_V_R_int16 = int(imu.ToUint(hip_dnn.dqTd_filtered_R, -1 * motion_scale, motion_scale, 16))   
+            
+            b1 = (R_P_L_int16 >> 8 & 0x00ff)
+            b2 = (R_P_L_int16 & 0x00FF)  
+            b3 = (R_P_R_int16 >> 8 & 0x00ff)  
+            b4 = (R_P_R_int16 & 0x00FF)   
+            b5 = (R_V_L_int16 >> 8 & 0x00ff)
+            b6 = (R_V_L_int16 & 0x00FF)  
+            b7 = (R_V_R_int16 >> 8 & 0x00ff)  
+            b8 = (R_V_R_int16 & 0x00FF)     
+            
+            imu.send_reference(b1, b2, b3, b4,b5, b6, b7, b8)   
+        else: 
+            ## send torque command back    
+            B1_int16 = int(imu.ToUint(L_Cmd, -1 * torque_scale, torque_scale, 16))     
+            B2_int16 = int(imu.ToUint(R_Cmd, -1 * torque_scale, torque_scale, 16))        
+            b1 = (B1_int16 >> 8 & 0x00ff)  
+            b2 = (B1_int16 & 0x00FF)  
+            b3 = (B2_int16 >> 8 & 0x00ff)  
+            b4 = (B2_int16 & 0x00FF)   
+            
+            imu.send(b1, b2, b3, b4)   
+        
         data = {
             'L_IMU_Ang': L_IMU_angle,
             'R_IMU_Ang': R_IMU_angle,
             'L_IMU_Vel': L_IMU_vel,
             'R_IMU_Vel': R_IMU_vel, 
-            'L_Cmd': L_Cmd/Cmd_scale,  
-            'R_Cmd': R_Cmd/Cmd_scale,  
+            'L_Cmd'    : L_Cmd,  
+            'R_Cmd'    : R_Cmd,  
             'L_Ref_Ang': hip_dnn.qHr_L,    
             'R_Ref_Ang': hip_dnn.qHr_R,    
             'L_Ref_Vel': hip_dnn.dqTd_filtered_L,   
             'R_Ref_Vel': hip_dnn.dqTd_filtered_R,      
-            'Peak': pk,  
-            'Time': now
+            'Peak'     : pk,  
+            'Time'     : now
         }   
         writer.writerow(data) 
         csvfile.flush()    
-        print(f"| now: {now:^8.3f} | L_IMU_Ang: {L_IMU_angle:^8.3f} | R_IMU_Ang: {R_IMU_angle:^8.3f} | L_IMU_Vel: {L_IMU_vel:^8.3f} | R_IMU_Vel: {R_IMU_vel:^8.3f} | L_Cmd: {L_Cmd/Cmd_scale:^8.3f} | R_Cmd: {R_Cmd/Cmd_scale:^8.3f} | Peak: {pk/Cmd_scale:^8.3f} |")
+        print(f"| now: {now:^8.3f} | L_IMU_Ang: {L_IMU_angle:^8.3f} | R_IMU_Ang: {R_IMU_angle:^8.3f} | L_IMU_Vel: {L_IMU_vel:^8.3f} | R_IMU_Vel: {R_IMU_vel:^8.3f} | L_Cmd: {L_Cmd:^8.3f} | R_Cmd: {R_Cmd:^8.3f} | Peak: {pk:^8.3f} |")
