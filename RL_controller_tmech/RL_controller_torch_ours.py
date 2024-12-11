@@ -85,10 +85,10 @@ with open(file_name, 'a', newline='') as csvfile:
         
         if (ref_type == 1):  
             ## second reference motion to Teensy   
-            R_P_L_int16 = int(imu.ToUint(hip_dnn.qHr_L, -1 * motion_scale, motion_scale, 16))     
-            R_P_R_int16 = int(imu.ToUint(hip_dnn.qHr_R, -1 * motion_scale, motion_scale, 16))         
-            R_V_L_int16 = int(imu.ToUint(hip_dnn.dqTd_filtered_L, -1 * motion_scale, motion_scale, 16))     
-            R_V_R_int16 = int(imu.ToUint(hip_dnn.dqTd_filtered_R, -1 * motion_scale, motion_scale, 16))   
+            R_P_L_int16 = int(imu.ToUint(hip_dnn.qHr_L, -1 * position_scale, position_scale, 16))       
+            R_P_R_int16 = int(imu.ToUint(hip_dnn.qHr_R, -1 * position_scale, position_scale, 16))         
+            R_V_L_int16 = int(imu.ToUint(hip_dnn.dqTd_filtered_L, -1 * velocity_scale, velocity_scale, 16))       
+            R_V_R_int16 = int(imu.ToUint(hip_dnn.dqTd_filtered_R, -1 * velocity_scale, velocity_scale, 16))       
             
             b1 = (R_P_L_int16 >> 8 & 0x00ff)
             b2 = (R_P_L_int16 & 0x00FF)  

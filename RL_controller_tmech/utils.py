@@ -16,7 +16,8 @@ max_cmd      = 8.0
 ref_type     = 0 
 
 torque_scale = 20.0   
-motion_scale = 180.0   
+position_scale = 180.0   
+velocity_scale = 180.0   
 
 L_Cmd = 0
 R_Cmd = 0
