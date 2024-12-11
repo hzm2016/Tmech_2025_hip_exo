@@ -13,7 +13,7 @@ counter      = 0
 nn_mode      = 1  
 kcontrol     = 0.25      # 1.0 for walking, 1.5 para running. 2 para climbing.  
 max_cmd      = 8.0    
-ref_type     = 0 
+ref_type     = 1
 
 torque_scale = 20.0   
 position_scale = 180.0   

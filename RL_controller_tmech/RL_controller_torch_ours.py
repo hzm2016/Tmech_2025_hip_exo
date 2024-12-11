@@ -99,7 +99,7 @@ with open(file_name, 'a', newline='') as csvfile:
             b7 = (R_V_R_int16 >> 8 & 0x00ff)  
             b8 = (R_V_R_int16 & 0x00FF)     
             
-            imu.send_reference(b1, b2, b3, b4,b5, b6, b7, b8)   
+            imu.send_reference(b1, b2, b3, b4, b5, b6, b7, b8)   
         else: 
             ## send torque command back    
             B1_int16 = int(imu.ToUint(L_Cmd, -1 * torque_scale, torque_scale, 16))     

@@ -39,14 +39,14 @@ class READIMU(object):
         self.buffer = self.Serial_IMU.read(11)    
         self.buffer_len = len(self.buffer)  
         print(self.buffer_len)   
-        print("length: ", self.buffer_len, self.buffer[0], self.buffer[1], self.buffer[10])    
+        # print("length: ", self.buffer_len, self.buffer[0], self.buffer[1], self.buffer[10])    
 
     def send(self,b1,b2,b3,b4):
         self.Serial_IMU.write(bytearray([0x40, 0x41, 0x42, 
                                b1, b2, b3, b4, 0x43]))     
         
     def send_reference(self, b1, b2, b3, b4,b5, b6, b7, b8):     
-        self.Serial_IMU.write(bytearray([b1, b2, b3, b4, b5, b6, b7, b8]))     
+        self.Serial_IMU.write(bytearray([0x40, 0x41, 0x42, b1, b2, b3, b4, b5, b6, b7, b8]))     
     
     def printHEX(self, Vprint):
         print([hex(x) for x in Vprint])
