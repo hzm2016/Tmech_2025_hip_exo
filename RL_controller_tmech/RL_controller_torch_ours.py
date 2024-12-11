@@ -38,7 +38,7 @@ if save_data:
             "L_ref_vel", "R_ref_vel"   
         ))  
         
-with open(file_name, 'a', newline='') as csvfile:   
+with open(file_name + ".csv", 'a', newline='') as csvfile:   
     variablenames = ['L_IMU_Ang', 'R_IMU_Ang', 
                      'L_IMU_Vel', 'R_IMU_Vel', 
                      'L_Cmd',     'R_Cmd', 
