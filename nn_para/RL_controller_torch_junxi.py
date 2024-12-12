@@ -1,6 +1,6 @@
 import ReadIMU as ReadIMU 
 import time  
-from DNN_torch import DNN  
+from check_RL_controller import DNN  
 import datetime  
 import numpy as np   
 import csv                   
@@ -8,7 +8,9 @@ from utils import *
 
 
 ComPort = '/dev/serial0'     
+save_policy_data = saved_policy_path = "max.pt"
 imu = ReadIMU.READIMU(ComPort)    
+dnn = DNN(18,128,64,2,saved_policy_path=saved_policy_path)  
 
 if save_data:   
     with open(file_name + ".csv", "a") as log:  
@@ -53,15 +55,15 @@ with open(file_name + ".csv", 'a', newline='') as csvfile:
         
         #### filtering the input position and velocity ####   
         
-        print(f"Time when running NN = {now:^8.3f}")  
-        hip_dnn.generate_assistance(L_IMU_angle, R_IMU_angle, L_IMU_vel, R_IMU_vel, kp, kd)  
+        print(f"Time when running NN = {now:^8.3f}")    
+        dnn.generate_assistance(L_IMU_angle, R_IMU_angle, L_IMU_vel, R_IMU_vel, kp, kd)  
 
         # calculate assistive torque in different ways    
-        L_Cmd = L_Ctl * hip_dnn.hip_torque_L * kcontrol * 1.0/Cmd_scale      
-        R_Cmd = R_Ctl * hip_dnn.hip_torque_R * kcontrol * 1.0/Cmd_scale         
+        L_Cmd = L_Ctl * dnn.hip_torque_L * kcontrol * 1.0/Cmd_scale      
+        R_Cmd = R_Ctl * dnn.hip_torque_R * kcontrol * 1.0/Cmd_scale         
         
-        # L_Cmd =  cal_assistive_force(kp=kp, kd=kd, ref_pos=hip_dnn.qHr_L, real_vel=hip_dnn.dqTd_filtered_L)    
-        # R_Cmd =  cal_assistive_force(kp=kp, kd=kd, ref_pos=hip_dnn.qHr_R, real_vel=hip_dnn.dqTd_filtered_R)    
+        # L_Cmd =  cal_assistive_force(kp=kp, kd=kd, ref_pos=dnn.qHr_L, real_vel=dnn.dqTd_filtered_L)    
+        # R_Cmd =  cal_assistive_force(kp=kp, kd=kd, ref_pos=dnn.qHr_R, real_vel=dnn.dqTd_filtered_R)    
 
         if (L_Cmd > pk or R_Cmd > pk):  
             if (R_Cmd > L_Cmd): 
@@ -71,10 +73,10 @@ with open(file_name + ".csv", 'a', newline='') as csvfile:
         
         if (ref_type == 1):  
             ## second reference motion to Teensy   
-            R_P_L_int16 = int(imu.ToUint(hip_dnn.qHr_L, -1 * position_scale, position_scale, 16))       
-            R_P_R_int16 = int(imu.ToUint(hip_dnn.qHr_R, -1 * position_scale, position_scale, 16))         
-            R_V_L_int16 = int(imu.ToUint(hip_dnn.dqTd_filtered_L, -1 * velocity_scale, velocity_scale, 16))       
-            R_V_R_int16 = int(imu.ToUint(hip_dnn.dqTd_filtered_R, -1 * velocity_scale, velocity_scale, 16))       
+            R_P_L_int16 = int(imu.ToUint(dnn.qHr_L, -1 * position_scale, position_scale, 16))       
+            R_P_R_int16 = int(imu.ToUint(dnn.qHr_R, -1 * position_scale, position_scale, 16))         
+            R_V_L_int16 = int(imu.ToUint(dnn.dqTd_filtered_L, -1 * velocity_scale, velocity_scale, 16))       
+            R_V_R_int16 = int(imu.ToUint(dnn.dqTd_filtered_R, -1 * velocity_scale, velocity_scale, 16))       
             
             b1 = (R_P_L_int16 >> 8 & 0x00ff)
             b2 = (R_P_L_int16 & 0x00FF)  
@@ -104,10 +106,10 @@ with open(file_name + ".csv", 'a', newline='') as csvfile:
             'R_IMU_Vel': R_IMU_vel, 
             'L_Cmd'    : L_Cmd,  
             'R_Cmd'    : R_Cmd,  
-            'L_Ref_Ang': hip_dnn.qHr_L,    
-            'R_Ref_Ang': hip_dnn.qHr_R,    
-            'L_Ref_Vel': hip_dnn.dqTd_filtered_L,   
-            'R_Ref_Vel': hip_dnn.dqTd_filtered_R,      
+            'L_Ref_Ang': dnn.qHr_L,    
+            'R_Ref_Ang': dnn.qHr_R,    
+            'L_Ref_Vel': dnn.dqTd_filtered_L,   
+            'R_Ref_Vel': dnn.dqTd_filtered_R,      
             'Peak'     : pk,  
             'Time'     : now
         }   

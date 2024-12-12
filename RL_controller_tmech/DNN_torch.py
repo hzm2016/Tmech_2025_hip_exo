@@ -58,7 +58,8 @@ class DNN:
         self.n_third = n_third
         
         self.b = np.array([0.0730, 0, -0.0730])
-        self.a = np.array([1.0000, -1.8486, 0.8541])
+        self.a = np.array([1.0000, -1.8486, 0.8541]) 
+        
         #self.b = np.array([0.0336,    0.0671,    0.0336])
         #self.a = np.array([1.0000,   -1.4190,    0.5533])
         
@@ -106,8 +107,11 @@ class DNN:
         self.hip_torque_R = 0
         self.LTx = 0
         self.RTx = 0
-        self.LTAVx = 0
-        self.RTAVx = 0
+        self.LTAVx = 0  
+        self.RTAVx = 0  
+        
+        self.qHr_L_ori = 0 
+        self.qHr_R_ori = 0 
         
         self.network = Network()
         
@@ -135,14 +139,18 @@ class DNN:
         self.out_3 = np.copy(self.out_2)
         self.out_2 = np.copy(self.out_1)
 
-        self.out_first[:] = 0
-        self.out_second[:] = 0
-        self.out_third[:] = 0
+        self.out_first[:]  = 0  
+        self.out_second[:] = 0  
+        self.out_third[:]  = 0  
         
         input_data_tensor = torch.tensor(self.input_data, dtype=torch.float32)
         output_tensor = self.network(input_data_tensor)
-        output_data = output_tensor.detach().numpy()
-        self.qHr_L, self.qHr_R = output_data
+        output_data = output_tensor.detach().numpy()  
+        self.qHr_L, self.qHr_R = deepcopy(output_data)   
+        
+        # original reference 
+        self.qHr_L_ori, self.qHr_R_ori = deepcopy(output_data)    
+        
         self.out_1 = np.array([self.qHr_L, self.qHr_R])  
 
         # for i in range(self.n_first):
@@ -153,7 +161,7 @@ class DNN:
             # self.out_second[i] = np.dot(self.out_first, self.fc2_weight[i,:]) + self.fc2_bias[i]
             # self.out_second[i] = np.maximum(0, self.out_second[i])
         
-        # for i in range(self.n_third):
+        # for i in range(self.n_third): 
             # self.out_third[i] = np.dot(self.out_second, self.fc3_weight[i,:]) + self.fc3_bias[i]
             # #self.out_third[i] = np.maximum(0, self.out_third[i])
         
@@ -165,20 +173,20 @@ class DNN:
         self.x_L[0] = self.qHr_L
         self.y_L[1:3] = self.y_L[0:2]
         self.y_L[0] = np.sum(np.dot(self.x_L, self.b)) - np.sum(np.dot(self.y_L[2:0:-1], self.a[2:0:-1]))
-        self.qHr_L = self.y_L[0] * 0.1
+        self.qHr_L = self.y_L[0] 
 
         self.x_R[1:3] = self.x_R[0:2]
         self.x_R[0] = self.qHr_R
         self.y_R[1:3] = self.y_R[0:2]
         self.y_R[0] = np.sum(np.dot(self.x_R, self.b)) - np.sum(np.dot(self.y_R[2:0:-1], self.a[2:0:-1]))
-        self.qHr_R = self.y_R[0] * 0.1
+        self.qHr_R = self.y_R[0] 
 
         # filter dqTd_L
         self.dqTd_history_L[1:3] = self.dqTd_history_L[0:2]
         self.dqTd_history_L[0] = self.LTAVx
         self.dqTd_filtered_history_L[1:3] = self.dqTd_filtered_history_L[0:2]
         self.dqTd_filtered_history_L[0] = np.sum(np.dot(self.dqTd_history_L, self.b)) - np.sum(np.dot(self.dqTd_filtered_history_L[2:0:-1], self.a[2:0:-1]))
-        self.dqTd_filtered_L = self.dqTd_filtered_history_L[0]
+        self.dqTd_filtered_L = self.dqTd_filtered_history_L[0]  
         
         # filter dqTd_R
         self.dqTd_history_R[1:3] = self.dqTd_history_R[0:2]
